@@ -1,0 +1,6 @@
+connection:
+  ssl: no
+  cert_validation: no
+pool:
+  min_runspaces: 1
+  max_runspaces: 3
