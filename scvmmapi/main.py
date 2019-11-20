@@ -6,13 +6,13 @@ from pypsrp.powershell import PowerShell, RunspacePool
 from requests.exceptions import ReadTimeout, ConnectTimeout
 from starlette.responses import RedirectResponse, Response
 
-import config
+import scvmmapi.config as config
 from data.VM import VM
-from utils import NoHeaderErrorFilter, LIST_SCRIPT
+from scvmmapi.utils import NoHeaderErrorFilter, LIST_SCRIPT
 
 app = FastAPI(
     title="SCVMM-api",
-    description="Simple SCVMM api for executing commands to start/stop/save VMs.",
+    description="Simple SCVMM api for executing commands to control VMs.",
     version="0.1.0"
 )
 
