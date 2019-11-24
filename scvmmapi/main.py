@@ -8,6 +8,7 @@ from starlette.responses import RedirectResponse, Response
 
 import scvmmapi.config as config
 from data.VM import VM
+from data.VMInfo import VMInfo
 from scvmmapi.utils import NoHeaderErrorFilter, LIST_SCRIPT
 
 app = FastAPI(
@@ -64,47 +65,67 @@ async def root():
 
 
 @app.post("/api/vm/start", status_code=204)
-async def start_vm(vmid: str):
+async def start_vm(info: VMInfo):
     """
     Invoke command to start virtual machine with given VM ID
-    :param vmid: VM ID of virtual machine to be started
+    :param info: VM ID of virtual machine to be started
     """
-    (PowerShell(pool)
-     .add_script("Get-SCVirtualMachine | ? {$_.VMId -eq \"" + vmid + "\" } | Start-SCVirtualMachine")
-     .begin_invoke())
+    ps = PowerShell(pool)
+    ps.add_script(
+        "$server = Get-SCVMMServer -ComputerName localhost"
+    ).add_script(
+        "Get-SCVirtualMachine -VMMServer $server |"
+        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+        " Start-SCVirtualMachine"
+    ).begin_invoke()
 
 
 @app.post("/api/vm/save", status_code=204)
-async def save_vm(vmid: str):
+async def save_vm(info: VMInfo):
     """
     Invoke command to save virtual machine with given VM ID
-    :param vmid: VM ID of virtual machine to be saved
+    :param info: VM ID of virtual machine to be saved
     """
-    (PowerShell(pool)
-     .add_script("Get-SCVirtualMachine | ? {$_.VMId -eq \"" + vmid + "\" } | Stop-SCVirtualMachine -SaveState")
-     .begin_invoke())
+    ps = PowerShell(pool)
+    ps.add_script(
+        "$server = Get-SCVMMServer -ComputerName localhost"
+    ).add_script(
+        "Get-SCVirtualMachine -VMMServer $server |"
+        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+        " Stop-SCVirtualMachine -SaveState"
+    ).begin_invoke()
 
 
 @app.post("/api/vm/shutdown", status_code=204)
-async def shutdown_vm(vmid: str):
+async def shutdown_vm(info: VMInfo):
     """
     Invoke command to shutdown virtual machine with given VM ID
-    :param vmid: VM ID of virtual machine to be shutdowned
+    :param info: VM ID of virtual machine to be shutdowned
     """
-    (PowerShell(pool)
-     .add_script("Get-SCVirtualMachine | ? {$_.VMId -eq \"" + vmid + "\" } | Stop-SCVirtualMachine -Shutdown")
-     .begin_invoke())
+    ps = PowerShell(pool)
+    ps.add_script(
+        "$server = Get-SCVMMServer -ComputerName localhost"
+    ).add_script(
+        "Get-SCVirtualMachine -VMMServer $server |"
+        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+        " Stop-SCVirtualMachine -Shutdown"
+    ).begin_invoke()
 
 
 @app.post("/api/vm/poweroff", status_code=204)
-async def poweroff_vm(vmid: str):
+async def poweroff_vm(info: VMInfo):
     """
     Invoke command to forcefully shutdown virtual machine with given VM ID
-    :param vmid: VM ID of virtual machine to be forcefully shutdowned
+    :param info: VM ID of virtual machine to be forcefully shutdowned
     """
-    (PowerShell(pool)
-     .add_script("Get-SCVirtualMachine | ? {$_.VMId -eq \"" + vmid + "\" } | Stop-SCVirtualMachine -Force")
-     .begin_invoke())
+    ps = PowerShell(pool)
+    ps.add_script(
+        "$server = Get-SCVMMServer -ComputerName localhost"
+    ).add_script(
+        "Get-SCVirtualMachine -VMMServer $server |"
+        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+        " Stop-SCVirtualMachine -Force"
+    ).begin_invoke()
 
 
 @app.get("/api/vm/list")
