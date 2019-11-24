@@ -128,6 +128,9 @@ async def list_vms(domain: str, username: str):
     except ReadTimeout:
         return Response(status_code=504, content="SCVMM is not available now.")
 
+    if len(psresult) == 0 and ps.had_errors:
+        return Response(status_code=500, content="SCVMM-API internal error occured.")
+
     if psresult:
         logging.info(f"Data for {domain}\\{username} returned, length: {len(psresult)}")
 

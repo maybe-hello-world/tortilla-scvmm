@@ -18,8 +18,12 @@ $admin_flag = $false
 # Есть хотя бы одна роль с Delegated Admin
 $deleg_flag = $false
 
+# get local scvmm server
+# TODO: not only localhost?
+$vmmserver = Get-SCVMMServer -ComputerName localhost
+
 # Узнаем, есть ли общая админка у человека и список delegated admin ролей
-$tmp = @(Get-SCUserRoleMembership -UserName $name | Select-Object Name, UserRoleProfile)
+$tmp = @(Get-SCUserRoleMembership -UserName $name -VMMServer $vmmserver | Select-Object Name, UserRoleProfile)
 foreach ($role in $tmp)
 {
     if ($role.UserRoleProfile -eq "Administrator") {
@@ -32,15 +36,15 @@ foreach ($role in $tmp)
 
 # Если есть роль глобального администратора - возвращаем список всех виртуальных машин, т.к. он со всеми может взаимодействовать
 if ($admin_flag) {
-    $VMs = @(Get-SCVirtualMachine |`
+    $VMs = @(Get-SCVirtualMachine -VMMServer $vmmserver |`
     Where-Object VMHost -ne $null |`
     Select-Object Name, VMID, VirtualMachineState, MostRecentTask, MostRecentTaskUIState, VMHost)
 } else {
     # Иначе - проверяем наличие delegated admin ролей, на каждую такую роль запрашиваем список доступных виртуалок
     if ($deleg_flag) {
         foreach ($role in $user_roles) {
-            $hostgroups = @((Get-SCUserRole -Name $role).HostGroup)
-            $clouds = @((Get-SCUserRole -Name $role).Cloud)
+            $hostgroups = @((Get-SCUserRole -VMMServer $vmmserver -Name $role).HostGroup)
+            $clouds = @((Get-SCUserRole -VMMServer $vmmserver -Name $role).Cloud)
 
             # Добавляем машины из хостов
             foreach ($hostgroup in $hostgroups) {
@@ -49,7 +53,7 @@ if ($admin_flag) {
                     $hosts += $x.Name
                 }
 
-                $tmp = Get-SCVirtualMachine |`
+                $tmp = Get-SCVirtualMachine -VMMServer $vmmserver |`
                  Where-Object VMHost -In $hosts
                 foreach ($vm in $tmp) {
                     $VMs += $vm
@@ -58,7 +62,7 @@ if ($admin_flag) {
 
             # Добавляем машины из облака
             foreach ($cloud in $clouds) {
-                $tmp = Get-SCVirtualMachine -Cloud $cloud
+                $tmp = Get-SCVirtualMachine -VMMServer $vmmserver -Cloud $cloud
 
                  foreach ($vm in $tmp) {
                      $VMs += $vm
@@ -68,7 +72,7 @@ if ($admin_flag) {
     }
 
     # Добавляем выданные лично пользователю виртуалки
-    $tmp = Get-SCVirtualMachine |`
+    $tmp = Get-SCVirtualMachine -VMMServer $vmmserver |`
     Where-Object { $_.GrantedToList.User -eq $name -or $_.Owner -eq $name }
 
     foreach ($vm in $tmp) {
