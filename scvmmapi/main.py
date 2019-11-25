@@ -17,8 +17,9 @@ app = FastAPI(
     version="0.1.0"
 )
 
-wsman: WSMan
-pool: RunspacePool
+# wsman: WSMan
+# pool: RunspacePool
+connection_settings: dict
 
 logging.getLogger("urllib3.connectionpool").addFilter(
     NoHeaderErrorFilter()
@@ -27,33 +28,40 @@ logging.getLogger("urllib3.connectionpool").addFilter(
 
 @app.on_event("startup")
 async def __init__():
-    global wsman, pool
+    # global wsman, pool
+    global connection_settings
     connection_settings = config.SETTINGS.get("connection", {})
-    wsman = WSMan(
-        server=config.CONN_HOST,
-        username=config.CONN_LOGIN,
-        password=config.CONN_PASSWORD,
-        **connection_settings
-    )
+    connection_settings.update({
+        'server': config.CONN_HOST,
+        'username': config.CONN_LOGIN,
+        'password': config.CONN_PASSWORD
+    })
+    # wsman = WSMan(
+    #     server=config.CONN_HOST,
+    #     username=config.CONN_LOGIN,
+    #     password=config.CONN_PASSWORD,
+    #     **connection_settings
+    # )
 
-    pool_settings = config.SETTINGS.get("pool", {})
-    pool = RunspacePool(
-        connection=wsman,
-        **pool_settings
-    )
-    try:
-        pool.open()
-    except ConnectTimeout:
-        logging.error(f"Cannot connect to SCVMM host {config.CONN_HOST}, exiting...")
-        raise
-    else:
-        logging.info(f"RunspacePool opened, min threads: {pool.min_runspaces}, max threads: {pool.max_runspaces}")
+    # pool_settings = config.SETTINGS.get("pool", {})
+    # pool = RunspacePool(
+    #     connection=wsman,
+    #     **pool_settings
+    # )
+    # try:
+    #     pool.open()
+    # except ConnectTimeout:
+    #     logging.error(f"Cannot connect to SCVMM host {config.CONN_HOST}, exiting...")
+    #     raise
+    # else:
+    #     logging.info(f"RunspacePool opened, min threads: {pool.min_runspaces}, max threads: {pool.max_runspaces}")
 
 
 @app.on_event("shutdown")
 def __del__():
-    global pool
-    pool.close()
+    # global pool
+    # pool.close()
+    pass
 
 
 @app.get("/")
@@ -70,14 +78,15 @@ async def start_vm(info: VMInfo):
     Invoke command to start virtual machine with given VM ID
     :param info: VM ID of virtual machine to be started
     """
-    ps = PowerShell(pool)
-    ps.add_script(
-        "$server = Get-SCVMMServer -ComputerName localhost"
-    ).add_script(
-        "Get-SCVirtualMachine -VMMServer $server |"
-        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
-        " Start-SCVirtualMachine"
-    ).begin_invoke()
+    with RunspacePool(connection=WSMan(**connection_settings)) as pool:
+        ps = PowerShell(pool)
+        ps.add_script(
+            "$server = Get-SCVMMServer -ComputerName localhost"
+        ).add_script(
+            "Get-SCVirtualMachine -VMMServer $server |"
+            " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+            " Start-SCVirtualMachine"
+        ).begin_invoke()
 
 
 @app.post("/api/vm/save", status_code=204)
@@ -86,14 +95,15 @@ async def save_vm(info: VMInfo):
     Invoke command to save virtual machine with given VM ID
     :param info: VM ID of virtual machine to be saved
     """
-    ps = PowerShell(pool)
-    ps.add_script(
-        "$server = Get-SCVMMServer -ComputerName localhost"
-    ).add_script(
-        "Get-SCVirtualMachine -VMMServer $server |"
-        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
-        " Stop-SCVirtualMachine -SaveState"
-    ).begin_invoke()
+    with RunspacePool(connection=WSMan(**connection_settings)) as pool:
+        ps = PowerShell(pool)
+        ps.add_script(
+            "$server = Get-SCVMMServer -ComputerName localhost"
+        ).add_script(
+            "Get-SCVirtualMachine -VMMServer $server |"
+            " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+            " Stop-SCVirtualMachine -SaveState"
+        ).begin_invoke()
 
 
 @app.post("/api/vm/shutdown", status_code=204)
@@ -102,14 +112,15 @@ async def shutdown_vm(info: VMInfo):
     Invoke command to shutdown virtual machine with given VM ID
     :param info: VM ID of virtual machine to be shutdowned
     """
-    ps = PowerShell(pool)
-    ps.add_script(
-        "$server = Get-SCVMMServer -ComputerName localhost"
-    ).add_script(
-        "Get-SCVirtualMachine -VMMServer $server |"
-        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
-        " Stop-SCVirtualMachine -Shutdown"
-    ).begin_invoke()
+    with RunspacePool(connection=WSMan(**connection_settings)) as pool:
+        ps = PowerShell(pool)
+        ps.add_script(
+            "$server = Get-SCVMMServer -ComputerName localhost"
+        ).add_script(
+            "Get-SCVirtualMachine -VMMServer $server |"
+            " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+            " Stop-SCVirtualMachine -Shutdown"
+        ).begin_invoke()
 
 
 @app.post("/api/vm/poweroff", status_code=204)
@@ -118,14 +129,15 @@ async def poweroff_vm(info: VMInfo):
     Invoke command to forcefully shutdown virtual machine with given VM ID
     :param info: VM ID of virtual machine to be forcefully shutdowned
     """
-    ps = PowerShell(pool)
-    ps.add_script(
-        "$server = Get-SCVMMServer -ComputerName localhost"
-    ).add_script(
-        "Get-SCVirtualMachine -VMMServer $server |"
-        " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
-        " Stop-SCVirtualMachine -Force"
-    ).begin_invoke()
+    with RunspacePool(connection=WSMan(**connection_settings)) as pool:
+        ps = PowerShell(pool)
+        ps.add_script(
+            "$server = Get-SCVMMServer -ComputerName localhost"
+        ).add_script(
+            "Get-SCVirtualMachine -VMMServer $server |"
+            " ? {$_.VMId -eq \"" + info.vmid + "\" } |"
+            " Stop-SCVirtualMachine -Force"
+        ).begin_invoke()
 
 
 @app.get("/api/vm/list")
@@ -142,12 +154,13 @@ async def list_vms(domain: str, username: str):
     if LIST_SCRIPT is None:
         return Response(status_code=500, content="Server error: script not found.")
 
-    ps = PowerShell(pool)
-    ps.add_script(script=LIST_SCRIPT).add_argument(domain).add_argument(username)
-    try:
-        psresult = ps.invoke()
-    except ReadTimeout:
-        return Response(status_code=504, content="SCVMM is not available now.")
+    with RunspacePool(connection=WSMan(**connection_settings)) as lpool:
+        ps = PowerShell(lpool)
+        ps.add_script(script=LIST_SCRIPT).add_argument(domain).add_argument(username)
+        try:
+            psresult = ps.invoke()
+        except ReadTimeout:
+            return Response(status_code=504, content="SCVMM is not available now.")
 
     if len(psresult) == 0 and ps.had_errors:
         return Response(status_code=500, content="SCVMM-API internal error occured.")
